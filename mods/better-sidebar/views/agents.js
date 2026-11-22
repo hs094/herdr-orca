@@ -19,7 +19,7 @@ import {
   layout,
 } from "herdr";
 import { findNode, hasSpacesView } from "./find-node.js";
-import { TEXT, Icon, IconButton, GroupHeader, Menu, MenuLabel, MenuOption } from "./ui.js";
+import { TEXT, Icon, GroupHeader } from "./ui.js";
 
 // The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
 const narrow = () => (findNode(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
@@ -210,8 +210,6 @@ export function statusMark(t, status, compact = false) {
 
 export class Agents {
   init(_props, cx) {
-    this.sortOpen = false;
-    this.sortFocus = cx.focus_handle();
     this.folded = new Set();
     // Each agent's last state and when it changed (ms), kept across restarts.
     this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
@@ -270,43 +268,6 @@ export class Agents {
     const sawDone =
       a.address === this.held?.address && this.held.rank === RANK.done && a.status === "idle";
     return sawDone ? RANK.done : (RANK[a.status] ?? 0);
-  }
-
-  sortOptions() {
-    const on = sortOf().id;
-    return SORTS.map((s) =>
-      MenuOption({
-        id: `sort-${s.id}`,
-        icon: s.icon,
-        label: s.label,
-        selected: s.id === on,
-        onClick: (cx) => {
-          setShared("agents.sort", s.id);
-          this.sortOpen = false;
-          cx.notify();
-        },
-      }),
-    );
-  }
-
-  renderSortMenu(sort) {
-    return Menu({
-      id: "ag-sort-menu",
-      open: this.sortOpen,
-      focus: this.sortFocus,
-      onOpenChange: (open, cx) => {
-        this.sortOpen = open;
-        cx.notify();
-      },
-      trigger: IconButton({
-        id: "ag-sort",
-        icon: sort.icon,
-        label: `Sort agents: ${sort.label}`,
-        iconSize: 14,
-        muted: true,
-      }),
-      children: [MenuLabel("Sort agents"), ...this.sortOptions()],
-    });
   }
 
   // A sub-agent kept as a pane is focused there; one without a pane is peeked.
@@ -390,7 +351,7 @@ export class Agents {
       .border_t(1)
       .border_color(t.border)
       .text_size(TEXT.body)
-      .when(!view.collapsed, (el) => el.child(this.heading(view.sort, t)))
+      .when(!view.collapsed, (el) => el.child(this.heading(t)))
       .when(view.list.length === 0 && !view.collapsed, (el) => el.child(this.emptyMessage(t)))
       .child(
         v_flex()
@@ -485,7 +446,7 @@ export class Agents {
 
   // ── Drawing ───────────────────────────────────────────────────────────────
 
-  heading(sort, t) {
+  heading(t) {
     return h_flex()
       .px(16)
       .h(41)
@@ -494,8 +455,7 @@ export class Agents {
       .flex_none()
       .items_center()
       .justify_between()
-      .child(div().text_size(TEXT.label).font_medium().text_color(t.dim).child("Agents"))
-      .child(this.renderSortMenu(sort));
+      .child(div().text_size(TEXT.label).font_medium().text_color(t.dim).child("Agents"));
   }
 
   emptyMessage(t) {

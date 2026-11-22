@@ -59,21 +59,22 @@
                     "weight": 1
                   },
                   "min": 90,
-                  "hidden": true
+                  "hidden": false
                 }
               ]
             },
             {
-              "id": "sidebar-footer",
+              "id": "usage-limits",
               "type": "block",
               "content": {
-                "mod": "better-sidebar",
+                "mod": "usage-limits",
                 "props": {
-                  "view": "footer"
+                  "align": "left",
+                  "showRemaining": true
                 }
               },
               "size": {
-                "px": 36
+                "px": 28
               }
             }
           ],
@@ -215,77 +216,6 @@
         "width": 1,
         "color": "border"
       }
-    },
-    {
-      "id": "status-row",
-      "type": "row",
-      "children": [
-        {
-          "id": "usage-limits",
-          "type": "block",
-          "content": {
-            "mod": "usage-limits",
-            "props": {
-              "align": "left",
-              "showRemaining": true
-            }
-          },
-          "size": {
-            "weight": 2
-          },
-          "min": 130
-        },
-        {
-          "id": "status-commands",
-          "type": "block",
-          "content": {
-            "mod": "my-status",
-            "props": {
-              "part": "commands"
-            }
-          },
-          "size": {
-            "weight": 1
-          }
-        },
-        {
-          "id": "resources",
-          "type": "block",
-          "size": {
-            "px": 150
-          },
-          "content": {
-            "mod": "resources"
-          }
-        },
-        {
-          "id": "live-ports",
-          "type": "block",
-          "content": {
-            "mod": "live-ports"
-          },
-          "size": {
-            "px": 64
-          }
-        },
-        {
-          "id": "status",
-          "type": "block",
-          "content": {
-            "mod": "my-status",
-            "props": {
-              "part": "machine"
-            }
-          },
-          "size": {
-            "px": 120
-          }
-        }
-      ],
-      "size": {
-        "px": 28
-      },
-      "resizable": false
     },
     {
       "id": "b5a2555d665994827df99a6eda27d695e",

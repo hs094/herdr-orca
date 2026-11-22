@@ -184,11 +184,10 @@ export default class UsageLimits extends View {
     const left = props()?.align === "left";
     const root = h_flex().id("root").size_full().px(12).gap(10).items_center().overflow_hidden()
       .when(left, (e) => e.justify_start()).when(!left, (e) => e.justify_end())
-      .bg(t.chrome).border_t(1).border_color(t.border).text_size(11.8).text_color(t.muted)
+      .bg(t.chrome).text_size(11.8).text_color(t.muted)
       .on_size_change((size, cx) => { this.width = size.width; cx.notify(); });
     // Only the limits themselves open the panel, not the empty rest of the block.
-    const content = h_flex().id("ul-content").gap(18).items_center().flex_none().on_hover((on, cx) => this.hover(on, cx))
-      .child(div().flex_none().text_color(t.dim).child(prefs.showRemaining ? "Remaining" : "Used"));
+    const content = h_flex().id("ul-content").gap(18).items_center().flex_none().on_hover((on, cx) => this.hover(on, cx));
     const showBars = prefs.showBars && this.compactWidth(model, numbersWidth, true) <= this.width - 70;
     if (numbers.length) {
       content.child(h_flex().gap(10).items_center().flex_none()

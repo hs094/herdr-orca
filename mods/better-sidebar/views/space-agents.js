@@ -8,7 +8,7 @@ import { RANK, kidStatus, duration, icon, agentLabel, statusMark } from "./agent
 
 // Spaces drawing agents inline; the footer and the spaces header read and set it.
 export const INLINE_KEY = "better-sidebar.inline-agents";
-export const inlineAgents = () => shared(INLINE_KEY) ?? true;
+export const inlineAgents = () => shared(INLINE_KEY) ?? false;
 
 const urgent = (statuses) => statuses.reduce((m, s) => ((RANK[s] ?? 0) > (RANK[m] ?? 0) ? s : m), null);
 
