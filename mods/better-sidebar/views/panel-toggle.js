@@ -40,7 +40,7 @@ export class PanelToggle {
       .pr(10)
       .items_center()
       .justify_end()
-      .bg(t.chrome)
+      .bg(t.background)
       .border_b(1)
       .border_color(t.border);
     if (!panel) return bar;

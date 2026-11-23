@@ -194,8 +194,8 @@ export default class Actions extends View {
     if (overlay === "menu") return menu(this);
     if (overlay === "edit") return editorView(this);
     const stop = (_e, cx) => cx.stop_propagation();
-    // Local fit: draw the bar's chrome and bottom rule like its neighbours in orca-2.
-    return h_flex().size_full().items_center().justify_end().bg(theme().chrome).border_b(1).border_color(theme().border)
+    // Match the terminal background and bottom rule.
+    return h_flex().size_full().items_center().justify_end().bg(theme().background).border_b(1).border_color(theme().border)
       .child(h_flex().id("actions-fit").flex_none().pr(8).items_center().on_size_change((size) => this.fit(size)).child(control(this, theme(), stop)));
   }
 
