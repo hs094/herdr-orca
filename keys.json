@@ -18,5 +18,8 @@
     "cmd-w": "my-tabs.close-tab",
     "cmd-shift-w": "my-tabs.close-pane",
     "cmd-shift-\\": "layout.toggle:panel"
+  },
+  "layout:zen-orca": {
+    "cmd-shift-\\": "layout.toggle:panel"
   }
 }

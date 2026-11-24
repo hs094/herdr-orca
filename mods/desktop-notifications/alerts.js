@@ -1,9 +1,8 @@
 // desktop-notifications: decides which agent changes to announce. Pure: no
-// `herdr` import, so tests can feed it plain objects.
+// herdr import, so tests can feed it plain objects.
 //
-// It mirrors Herdr's own attention rule (the one behind its sounds and
-// toasts): needing you always alerts; finishing alerts only when you weren't
-// looking. Sub-agents report through their parent and never alert.
+// It mirrors Herdr's own attention rule: needing you always alerts; finishing
+// alerts only when you weren't looking. Sub-agents report through their parent.
 
 const BLOCKED = new Set(["blocked"]);
 const BUSY = new Set(["working", "blocked"]);
@@ -16,26 +15,33 @@ export function alertFor(prev, next, looking) {
   return null;
 }
 
-/** Whether the person can see this agent now: the window is in front and the
- *  agent is in the tab it shows. */
+/** Whether the person can see this agent now: the window is in front and the agent is in the tab it shows. */
 export function isLooking(agent, focus, windowActive) {
   return Boolean(windowActive && focus && agent.space === focus.space && agent.tab === focus.tab);
 }
 
-/** The notification's text, in Herdr's own words. */
+function iconFor(agent) {
+  const app = ((agent.program?.name ?? "") + " " + (agent.app ?? "")).trim().toLowerCase();
+  if (/(^|[^a-z0-9])pi($|[^a-z0-9])/.test(app)) return "mods/desktop-notifications/icons/pi.png";
+  if (app.includes("codex")) return "mods/desktop-notifications/icons/codex.png";
+  if (app.includes("claude") || app.includes("anthropic")) return "mods/desktop-notifications/icons/anthropic.png";
+  return null;
+}
+
+/** The notification's text and icon. */
 export function message(agent, alert) {
   const name = agent.program?.name || agent.app || "An agent";
-  const title = alert === "blocked" ? `${name} needs you` : `${name} finished`;
+  const title = alert === "blocked" ? name + " needs you" : name + " finished";
   const tab = (agent.tab_name ?? "").trim();
   const space = (agent.space_name ?? "").trim();
-  const subtitle = space && tab && space !== tab ? `${space} / ${tab}` : space || tab;
-  return { title, subtitle, body: (agent.title ?? "").trim() || tab || name };
+  const subtitle = space && tab && space !== tab ? space + " / " + tab : space || tab;
+  return { title, subtitle, body: (agent.title ?? "").trim() || tab || name, icon: iconFor(agent) };
 }
 
 /**
  * Compares the last statuses with the live agents.
- * `known`: Map address -> { status, posted } from the previous call (null on the first).
- * Returns { known, post: [{ address, alert, ...message }], clear: [address] }.
+ * known: Map address -> { status, posted } from the previous call (null on the first).
+ * Returns { known, post, clear }.
  * The first call only records: nothing that happened before Herdr loaded the mod
  * is announced.
  */

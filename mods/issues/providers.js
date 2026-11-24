@@ -46,6 +46,17 @@ export function filterJiraIssues(items, filters, currentUserId) {
   });
 }
 
+export function assignedIssuePreview(items, { provider, query = "", filters = {}, currentUserId } = {}) {
+  let assigned = items;
+  if (provider === "jira") {
+    if (filters.assignee !== "me" || filters.status !== "open" || !currentUserId) return null;
+    assigned = filterJiraIssues(items, filters, currentUserId);
+  } else if (provider === "github") {
+    if (!/\bis:open\b/.test(query) || !query.includes("assignee:@me")) return null;
+  } else return null;
+  return assigned.slice(0, 5).map(({ number, title, url }) => ({ number, title, url }));
+}
+
 export function jiraIssue(issue, baseUrl) {
   const fields = issue.fields ?? {};
   const status = fields.status?.statusCategory?.key;

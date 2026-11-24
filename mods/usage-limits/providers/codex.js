@@ -60,7 +60,7 @@ export function parse(text, now) {
 export default {
   id: "codex",
   name: "Codex",
-  icon: "icons/codex.svg",
+  icon: "icons/codex.png",
   helper: "helpers/codex-limits.sh",
   parse,
 };

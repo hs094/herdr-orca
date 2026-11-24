@@ -3,26 +3,25 @@
 // 0px block. alerts.js decides what to announce; this file delivers it.
 
 import { View, div } from "gpui-kit";
-import { agents, terminals, focused, window, exec, props, home } from "herdr";
+import { agents, terminals, focused, window, exec, props, home, appHome } from "herdr";
 import { diff } from "./alerts.js";
 
 const BUNDLE = "dev.herdr.app";
 const GROUP = "herdr-agent-";
-// A copy of terminal-notifier.app carrying Herdr's icon (macOS takes the icon from the sender's bundle).
 const HERDR_NOTIFIER = "Applications/Herdr Notifier.app/Contents/MacOS/terminal-notifier";
 
 // Runs the notifier for at most 10s: a send waiting on macOS permission must not block later ones.
 const notifier = (bin, args) => exec("perl", ["-e", "alarm shift; exec @ARGV", "10", bin, ...args]);
 
 // Quotes one word for sh.
-const sh = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+const sh = (s) => "'" + String(s).replace(/'/g, "'" + "\\" + "'" + "'") + "'";
 
 export default class DesktopNotifications extends View {
   init(_props, cx) {
     this.known = null;
     this.sender = null; // "terminal-notifier" | "osascript" | "notify-send" | "none", found on first use
     this.app = null; // herdr-app's path, for click-to-focus
-    this.bin = "terminal-notifier"; // or the Herdr-icon copy, when installed
+    this.bin = "terminal-notifier";
     // render runs on every live change; the timer covers a hidden block.
     cx.timer.every(2000, () => this.check());
   }
@@ -36,14 +35,14 @@ export default class DesktopNotifications extends View {
     }
     const p = props() ?? {};
     const subAgents = new Set((terminals() ?? []).filter((t) => t?.parent).map((t) => t.address));
-    const { known, post, clear } = diff(this.known, live, {
+    const result = diff(this.known, live, {
       focus: focused(),
       windowActive: window()?.active ?? false,
       subAgents,
       want: { blocked: p.blocked, done: p.done },
     });
-    this.known = known;
-    if (post.length || clear.length) this.deliver(post, clear).catch((e) => console.log(`desktop-notifications: ${e}`));
+    this.known = result.known;
+    if (result.post.length || result.clear.length) this.deliver(result.post, result.clear).catch((e) => console.log("desktop-notifications: " + e));
   }
 
   async deliver(post, clear) {
@@ -55,14 +54,27 @@ export default class DesktopNotifications extends View {
 
   async findSender() {
     if (this.sender) return this.sender;
-    const has = async (cmd) => (await exec("/bin/sh", ["-c", `command -v ${cmd}`]).catch(() => ({ code: 1, stdout: "" }))).code === 0;
+    const has = async (cmd) => (await exec("/bin/sh", ["-c", "command -v " + cmd]).catch(() => ({ code: 1, stdout: "" }))).code === 0;
     const platform = window()?.platform;
     if (platform === "macos") {
-      const own = `${home()}/${HERDR_NOTIFIER}`;
-      if ((await exec("test", ["-x", own]).catch(() => ({ code: 1 }))).code === 0) this.bin = own;
-      this.sender = this.bin === own || (await has("terminal-notifier")) ? "terminal-notifier" : "osascript";
-      const found = await exec("/bin/sh", ["-c", "command -v herdr-app"]).catch(() => null);
-      this.app = found?.code === 0 ? found.stdout.trim() : null;
+      const candidates = [
+        home() + "/" + HERDR_NOTIFIER,
+        "/opt/homebrew/bin/terminal-notifier",
+        "/usr/local/bin/terminal-notifier",
+      ];
+      for (const candidate of candidates) {
+        if ((await exec("test", ["-x", candidate]).catch(() => ({ code: 1 }))).code === 0) {
+          this.bin = candidate;
+          break;
+        }
+      }
+      this.sender = this.bin !== "terminal-notifier" || (await has("terminal-notifier")) ? "terminal-notifier" : "osascript";
+      const localApp = home() + "/.local/bin/herdr-app";
+      if ((await exec("test", ["-x", localApp]).catch(() => ({ code: 1 }))).code === 0) this.app = localApp;
+      else {
+        const found = await exec("/bin/sh", ["-c", "command -v herdr-app"]).catch(() => null);
+        this.app = found?.code === 0 ? found.stdout.trim() : null;
+      }
     } else if (platform === "linux") {
       this.sender = (await has("notify-send")) ? "notify-send" : "none";
     } else {
@@ -74,20 +86,21 @@ export default class DesktopNotifications extends View {
   async post(sender, n) {
     if (sender === "terminal-notifier") {
       const args = ["-title", n.title, "-message", n.body, "-group", GROUP + n.address, "-activate", BUNDLE];
+      if (n.icon) args.push("-contentImage", n.icon.startsWith("/") ? n.icon : appHome() + "/" + n.icon);
       if (n.subtitle) args.push("-subtitle", n.subtitle);
-      if (this.app) args.push("-execute", `${sh(this.app)} do agent.focus ${sh(JSON.stringify({ terminal: n.address }))}`);
+      if (this.app) args.push("-execute", sh(this.app) + " do agent.focus " + sh(JSON.stringify({ terminal: n.address })));
       const r = await notifier(this.bin, args).catch(() => ({ code: -1 }));
       if (r.code === 0) return;
       // Not allowed to notify (System Settings > Notifications), or broken: use macOS's
-      // own for this one, and try terminal-notifier again next time (it may be allowed by then).
+      // own for this one, and try terminal-notifier again next time.
       return this.post("osascript", n);
     }
     if (sender === "osascript") {
       const script = "on run argv\ndisplay notification (item 3 of argv) with title (item 1 of argv) subtitle (item 2 of argv)\nend run";
       await exec("osascript", ["-e", script, n.title, n.subtitle ?? "", n.body]);
     } else if (sender === "notify-send") {
-      const body = n.subtitle ? `${n.subtitle}\n${n.body}` : n.body;
-      await exec("notify-send", ["--app-name=Herdr", `--urgency=${n.alert === "blocked" ? "critical" : "normal"}`, n.title, body]);
+      const body = n.subtitle ? n.subtitle + "\n" + n.body : n.body;
+      await exec("notify-send", ["--app-name=Herdr", "--urgency=" + (n.alert === "blocked" ? "critical" : "normal"), n.title, body]);
     }
   }
 

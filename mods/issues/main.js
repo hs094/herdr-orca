@@ -4,7 +4,7 @@ import { spaces, panes, focused, exec, run, theme, openOverlay, closeOverlay, pr
 import { issueSettings, issueToken, connectIssueProvider } from "./source.js";
 import { jiraCurrentUser, jiraIssues, linearIssues } from "./api.js";
 import { ExternalIssueViewer } from "./external-viewer.js";
-import { filterJiraIssues, jiraFilterOptions } from "./providers.js";
+import { assignedIssuePreview, filterJiraIssues, jiraFilterOptions } from "./providers.js";
 import { CredentialPrompt } from "./credential.js";
 import { spaceFor, startWorkspace } from "./start.js";
 import { Viewer, openUrl, labelChip } from "./viewer.js";
@@ -15,7 +15,7 @@ import { Projects, filterMenuView } from "./projects.js";
 // Orca-style issues and PRs table, opened as a popup (mod.json overlay).
 // Popups it opens (filters, repo, row menus) answer through shared "issues.pick".
 
-const DEFAULT = { issues: "is:issue is:open", prs: "is:pr is:open", projects: "" };
+const DEFAULT = { issues: "is:issue is:open assignee:@me", prs: "is:pr is:open", projects: "" };
 const FIELDS = {
   issues: "number,title,author,state,stateReason,labels,assignees,updatedAt,url",
   prs: "number,title,author,state,isDraft,labels,assignees,updatedAt,url,headRefName",
@@ -83,7 +83,7 @@ export default class Issues extends View {
     this.tab = shared("issues.tab") ?? "issues"; this.query = { ...DEFAULT }; this.page = 0;
     this.projects = new Projects(this);
     this.results = {}; this.loading = null; this.error = null; this.providerSettings = null; this.providerReady = false;
-    this.jiraAdvanced = false; this.jiraMe = null; this.jiraFilters = { assignee: "all", status: "open", priority: "", issueType: "" }; this.linearFilters = {};
+    this.jiraAdvanced = false; this.jiraMe = null; this.jiraFilters = { assignee: "me", status: "open", priority: "", issueType: "" }; this.linearFilters = {};
     this.pickAt = shared("issues.pick")?.at; this.changedAt = shared("issues.changed")?.at;
     this.input = InputState.new({ placeholder: "Search", value: this.query[this.tab] });
     this.input.on("submit", (_e, cx) => this.apply(this.input.value(), cx));
@@ -171,12 +171,13 @@ export default class Issues extends View {
   }
 
   loadExternal(cx, force = false) {
-    const key = this.key(), held = this.results[key], settings = this.providerSettings;
+    const key = this.key(), held = this.results[key], settings = this.providerSettings, tab = this.tab, query = this.query.issues, filters = { ...this.jiraFilters };
+    const publish = (items) => this.publishHoverPreview(items, { tab, query, provider: settings.provider, filters });
     if (!force && age(held) < FRESH) return;
     if (this.loading?.key === key && Date.now() - this.loading.at < 45000) return;
     const loading = (this.loading = { key, at: Date.now() });
     this.error = null;
-    const store = (entry) => { this.results[key] = entry; writeCache(`list:${key}`, entry); };
+    const store = (entry) => { this.results[key] = entry; writeCache(`list:${key}`, entry); publish(entry.items); };
     cx.spawn(async (cx) => {
       cx.notify();
       try {
@@ -184,6 +185,7 @@ export default class Issues extends View {
         if (entry && !held) { this.results[key] = entry; cx.notify(); }
         const token = await issueToken(settings);
         if (settings.provider === "jira" && !this.jiraMe) this.jiraMe = await jiraCurrentUser(settings, token);
+        if (entry) publish(entry.items);
         if (!force && age(entry) < FRESH) return;
         const items = settings.provider === "jira"
           ? await jiraIssues(settings, token, this.query.issues, this.jiraAdvanced)
@@ -208,12 +210,13 @@ export default class Issues extends View {
     const loading = (this.loading = { key, at: Date.now() });
     this.error = null;
     const kind = this.tab === "prs" ? "pr" : "issue", q = this.query[this.tab], tab = this.tab, repo = this.repo, on = this.repoOn;
-    const store = (entry) => { this.results[key] = entry; writeCache(`list:${key}`, entry); };
+    const publish = (items) => this.publishHoverPreview(items, { tab, query: q, provider: this.providerSettings.provider });
+    const store = (entry) => { this.results[key] = entry; writeCache(`list:${key}`, entry); publish(entry.items); };
     cx.spawn(async (cx) => {
       cx.notify();
       try {
         let entry = held ?? (await readCache(`list:${key}`));
-        if (entry && !held) { this.results[key] = entry; cx.notify(); }
+        if (entry && !held) { this.results[key] = entry; publish(entry.items); cx.notify(); }
         if (!force && age(entry) < FRESH) return;
         const probe = await repoChanged(repo, on, !force && age(entry) < MAX_AGE ? entry?.etag : null);
         if (!probe.changed) return store({ ...entry, at: Date.now() });
@@ -225,6 +228,12 @@ export default class Issues extends View {
       } catch (e) { if (this.key() === key) this.error = String(e?.message ?? e); }
       finally { if (this.loading === loading) this.loading = null; cx.notify(); }
     });
+  }
+
+  publishHoverPreview(items, options) {
+    if (options.tab !== "issues") return;
+    const preview = assignedIssuePreview(items, { ...options, currentUserId: this.jiraMe?.accountId });
+    if (preview !== null) setShared("issues.hoverPreview", { items: preview, at: Date.now() });
   }
 
   apply(q, cx) {

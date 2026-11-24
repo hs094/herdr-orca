@@ -58,6 +58,7 @@ export default class UsageLimits extends View {
     this.leftAt = null;    // ms, when the pointer left the bar and the panel
     this.terminal = null;  // the focused terminal the session below belongs to
     this.session = null;   // { data: Session, title } or null
+    this.activeApp = null;
     this.sessionAt = 0;    // ms, last session read
     this.sessionBusy = false;
     this.lastFetch = {};   // providerId → epoch s of last attempt
@@ -105,14 +106,17 @@ export default class UsageLimits extends View {
     this.sessionAt = Date.now();
     if (!terminal) {
       this.session = null;
+      this.activeApp = null;
       return;
     }
     this.sessionBusy = true;
     cx.spawn(async (cx) => {
       let next = null;
+      let activeApp = null;
       try {
         const info = JSON.parse((await exec("hc", ["get", terminal])).stdout);
-        const app = AGENTS[info.status?.app];
+        activeApp = info.status?.app ?? null;
+        const app = AGENTS[activeApp];
         const pid = info.foreground?.pid;
         if (app && pid) {
           const r = await exec("sh", [`${appHome()}/mods/${MOD}/helpers/session.sh`, app, String(pid)]);
@@ -129,6 +133,7 @@ export default class UsageLimits extends View {
         return;
       }
       this.session = next;
+      this.activeApp = activeApp;
       cx.notify();
     });
   }
@@ -177,35 +182,48 @@ export default class UsageLimits extends View {
     const t = theme();
     const st = states();
     const prefs = this.prefs();
+    const iconOnly = props()?.iconOnly === true;
     const model = barModel(st, prefs, now());
-    const numbers = sessionOnBar(this.session?.data, prefs);
+    const numbers = iconOnly ? [] : sessionOnBar(this.session?.data, prefs);
     const numbersWidth = numbers.reduce((w, n) => w + 7 * n.text.length + 14, numbers.length ? 14 : 0);
     const density = chooseDensity(model, this.width ? this.width - 24 - numbersWidth : Infinity, prefs.showBars);
     const left = props()?.align === "left";
-    const root = h_flex().id("root").size_full().px(12).gap(10).items_center().overflow_hidden()
-      .when(left, (e) => e.justify_start()).when(!left, (e) => e.justify_end())
+    const root = h_flex().id("root").size_full().px(iconOnly ? 0 : 12).gap(iconOnly ? 0 : 10).items_center().overflow_hidden()
+      .when(iconOnly, (e) => e.justify_center().text_color(t.foreground))
+      .when(!iconOnly && left, (e) => e.justify_start()).when(!iconOnly && !left, (e) => e.justify_end())
       .bg(t.chrome).text_size(11.8).text_color(t.muted)
       .on_size_change((size, cx) => { this.width = size.width; cx.notify(); });
     // Only the limits themselves open the panel, not the empty rest of the block.
     const content = h_flex().id("ul-content").gap(18).items_center().flex_none().on_hover((on, cx) => this.hover(on, cx));
-    const showBars = prefs.showBars && this.compactWidth(model, numbersWidth, true) <= this.width - 70;
-    if (numbers.length) {
-      content.child(h_flex().gap(10).items_center().flex_none()
-        .children(numbers.map((n) => div().whitespace_nowrap().text_color(textColor(n.level, n.text, t)).child(n.text))));
-      if (!model.empty) content.child(div().w(1).h(14).bg(t.border).flex_none());
+    if (iconOnly) {
+      const app = this.activeApp ?? this.session?.data?.app;
+      const anthropic = app === "claude" || app === "claude-code";
+      const icon = anthropic ? appHome() + "/mods/file-icons/icons/claude.svg" : "mods/usage-limits/icons/codex.svg";
+      const logo = anthropic ? image(icon) : svg(icon);
+      const label = anthropic ? "Anthropic usage" : "Codex usage";
+      content.child(div().id("ul-icon-only").size(36).flex().items_center().justify_center().rounded(7).cursor_pointer()
+        .hover((s) => s.bg(t.hover))
+        .role("button").accessibility_label(label)
+        .child(logo.size(24).flex_none()));
+    } else {
+      const showBars = prefs.showBars && this.compactWidth(model, numbersWidth, true) <= this.width - 70;
+      if (numbers.length) {
+        content.child(h_flex().gap(10).items_center().flex_none()
+          .children(numbers.map((n) => div().whitespace_nowrap().text_color(textColor(n.level, n.text, t)).child(n.text))));
+        if (!model.empty) content.child(div().w(1).h(14).bg(t.border).flex_none());
+      }
+      if (model.empty) content.child(div().id("ul-empty").child(svg("mods/" + MOD + "/icons/gauge.svg").size(14)));
+      model.groups.forEach((g) => content.child(this.compactGroup(g, showBars, t)));
     }
-    if (model.empty) content.child(div().id("ul-empty").child(svg(`mods/${MOD}/icons/gauge.svg`).size(14)));
-    model.groups.forEach((g) => content.child(this.compactGroup(g, showBars, t)));
     const panel = cardModel(st, now(), undefined, prefs.showRemaining);
     // With no CLI installed there are no limits to show, so settings are all there is.
     const body = this.panel === "settings" || panel.empty ? this.settings(!panel.empty, t) : this.limits(panel, t);
     const cooling = this.cooling();
-    return root.child(HoverCard.new("ul-panel").anchor(left ? "bottom_left" : "bottom_right").open_delay(PANEL_OPEN_DELAY).close_delay(PANEL_CLOSE_DELAY)
+    const card = root.child(HoverCard.new("ul-panel").anchor(left ? "bottom_left" : "bottom_right").open_delay(PANEL_OPEN_DELAY).close_delay(PANEL_CLOSE_DELAY)
       .trigger(content)
-      .content(body))
-      .child(this.iconButton("ul-bar-refresh", "refresh", cooling ? "Refreshing…" : "Refresh now", !cooling, (cx) => this.refresh(cx), t));
+      .content(body));
+    return iconOnly ? card : card.child(this.iconButton("ul-bar-refresh", "refresh", cooling ? "Refreshing…" : "Refresh now", !cooling, (cx) => this.refresh(cx), t));
   }
-
   // Rough width of the compact bar, to drop the bars first when it doesn't fit.
   compactWidth(model, extra, bars) {
     return model.groups.reduce((w, g) => w + 37 + (bars ? 50 : 0)

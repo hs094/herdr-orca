@@ -1,6 +1,7 @@
 import { View, div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { spaces, panes, theme, run, window, keys, props, exec } from "herdr";
+import { spaces, panes, theme, run, window, keys, props, exec, appHome, readTextFile } from "herdr";
+import { showPullRequest } from "./visibility.js";
 
 const PR_EVERY = 60 * 1000; // ms, re-check the focused branch's PR
 const PR_FIELDS = "number,title,state,isDraft,url,closingIssuesReferences";
@@ -10,7 +11,17 @@ export default class WorkspaceStatus extends View {
     this.prs = {};    // "machine|cwd|branch" → PR json, or null when there is none
     this.busy = {};
     this.key = null;
+    this.showClosedPRs = false;
     if (props()?.part === "machine") return;
+    cx.spawn(async (cx) => {
+      let settings = {};
+      try {
+        const raw = await readTextFile(appHome() + "/mods/my-status/mod.json");
+        settings = JSON.parse(raw ?? "{}").settings ?? {};
+      } catch {}
+      this.showClosedPRs = settings.showClosedPRs === true;
+      cx.notify();
+    });
     cx.timer.every(PR_EVERY, (cx) => this.fetchPr(this.target(), cx));
   }
 
@@ -50,7 +61,7 @@ export default class WorkspaceStatus extends View {
   }
 
   prIcons(pr, t) {
-    if (!pr) return [];
+    if (!showPullRequest(pr, this.showClosedPRs)) return [];
     const merged = pr.state === "MERGED";
     const color = merged ? t.ansi5 : pr.state === "CLOSED" ? t.ansi1 : pr.isDraft ? t.dim : t.ansi2;
     const status = merged ? "merged" : pr.state === "CLOSED" ? "closed" : pr.isDraft ? "draft" : "open";

@@ -40,9 +40,7 @@ export class PanelToggle {
       .pr(10)
       .items_center()
       .justify_end()
-      .bg(t.background)
-      .border_b(1)
-      .border_color(t.border);
+      .bg(t.background);
     if (!panel) return bar;
     return bar.child(
       IconButton({

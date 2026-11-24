@@ -51,7 +51,7 @@ export function parse(text, now) {
 export default {
   id: "claude",
   name: "Claude",
-  icon: "icons/claude.svg",
+  icon: "icons/anthropic.png",
   helper: "helpers/claude-usage.sh",
   parse,
 };

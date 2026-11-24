@@ -4,7 +4,7 @@
 set -e
 cd "$(dirname "$0")"
 HOME_DIR="${HERDR_APP_HOME:-$HOME/.config/herdr-app}"
-LAYOUT_SOURCE="$HOME_DIR/layouts/orca-copy.json"
+LAYOUT_SOURCE="$HOME_DIR/layouts/zen-orca.json"
 if [ -e "$LAYOUT_SOURCE" ] && [ "$LAYOUT_SOURCE" -ef "layouts/orca.json" ]; then
   echo "Herdr config is linked to this repo; edit and commit directly."
   exit 0
@@ -19,6 +19,6 @@ for mod in mods/*/; do
     jq 'del(.settings)' "mods/$name/mod.json" > "mods/$name/mod.json.tmp" && mv "mods/$name/mod.json.tmp" "mods/$name/mod.json"
   fi
 done
-# The active layout is orca-copy in Herdr; here it's orca.
+# The active layout is zen-orca in Herdr; here it's orca.
 jq 'del(.cloned_from)' "$LAYOUT_SOURCE" > layouts/orca.json
 echo "Synced $(ls mods | wc -l | tr -d ' ') mods and layouts/orca.json"

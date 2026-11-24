@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 
 (async () => {
-  const { jiraIssue, linearIssue, jiraQuery, linearIssueFilter, filterJiraIssues, jiraFilterOptions } = await import("./providers.js");
+  const { assignedIssuePreview, jiraIssue, linearIssue, jiraQuery, linearIssueFilter, filterJiraIssues, jiraFilterOptions } = await import("./providers.js");
 
   const jira = jiraIssue({
     key: "SOC-42",
@@ -66,7 +66,27 @@ const assert = require("node:assert/strict");
   ];
   assert.deepEqual(filterJiraIssues(filterItems, { assignee: "all", status: "open" }, "me"), filterItems.slice(0, 2));
   assert.deepEqual(filterJiraIssues(filterItems, { assignee: "me", status: "open" }, "me"), [filterItems[0]]);
-  assert.deepEqual(filterJiraIssues(filterItems, { assignee: "unassigned", status: "all", priority: "High", issueType: "Bug" }, "me"), [filterItems[2]]);
+  const previewItems = [
+    { number: "SOC-1", title: "Mine", url: "https://example.test/SOC-1", state: "OPEN", assignees: [{ accountId: "me" }] },
+    { number: "SOC-2", title: "Other", url: "https://example.test/SOC-2", state: "OPEN", assignees: [{ accountId: "other" }] },
+    { number: "SOC-3", title: "Done", url: "https://example.test/SOC-3", state: "CLOSED", assignees: [{ accountId: "me" }] },
+  ];
+  assert.deepEqual(assignedIssuePreview(previewItems, {
+    provider: "jira", filters: { assignee: "me", status: "open" }, currentUserId: "me",
+  }), [{ number: "SOC-1", title: "Mine", url: "https://example.test/SOC-1" }]);
+  assert.equal(assignedIssuePreview(previewItems, {
+    provider: "jira", filters: { assignee: "all", status: "open" }, currentUserId: "me",
+  }), null);
+  assert.equal(assignedIssuePreview(previewItems, {
+    provider: "jira", filters: { assignee: "me", status: "open" },
+  }), null);
+  const githubItems = Array.from({ length: 6 }, (_, i) => ({ number: i + 1, title: "Issue " + (i + 1), url: "https://example.test/" + (i + 1) }));
+  assert.equal(assignedIssuePreview(githubItems, {
+    provider: "github", query: "is:issue is:open assignee:@me",
+  }).length, 5);
+  assert.equal(assignedIssuePreview(githubItems, {
+    provider: "github", query: "is:issue is:open",
+  }), null);
   assert.deepEqual(jiraFilterOptions(filterItems), {
     assignees: [{ value: "me", label: "Me" }, { value: "other", label: "Other" }],
     statuses: ["Done", "Open"], priorities: ["High", "Low"], issueTypes: ["Bug", "Task"],

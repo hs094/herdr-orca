@@ -14,22 +14,12 @@
               "id": "brand",
               "type": "block",
               "content": {
-                "mod": "workspace-chrome"
+                "mod": "zen-workspace-chrome"
               },
               "size": {
-                "px": 46
+                "px": 0
               },
               "window_drag": true
-            },
-            {
-              "id": "sidebar-nav",
-              "type": "block",
-              "size": {
-                "px": 101
-              },
-              "content": {
-                "mod": "sidebar-nav"
-              }
             },
             {
               "id": "sidebar-lists",
@@ -64,18 +54,41 @@
               ]
             },
             {
-              "id": "usage-limits",
-              "type": "block",
-              "content": {
-                "mod": "usage-limits",
-                "props": {
-                  "align": "left",
-                  "showRemaining": true
+              "id": "sidebar-footer",
+              "type": "row",
+              "children": [
+                {
+                  "id": "sidebar-nav",
+                  "type": "block",
+                  "size": {
+                    "weight": 3
+                  },
+                  "content": {
+                    "mod": "sidebar-nav"
+                  }
+                },
+                {
+                  "id": "usage-limits",
+                  "type": "block",
+                  "content": {
+                    "mod": "usage-limits",
+                    "props": {
+                      "align": "left",
+                      "showRemaining": true,
+                      "iconOnly": true
+                    }
+                  },
+                  "size": {
+                    "weight": 1
+                  }
                 }
-              },
+              ],
               "size": {
-                "px": 28
-              }
+                "px": 48
+              },
+              "padding": 0,
+              "gap": 0,
+              "resizable": false
             }
           ],
           "size": {
@@ -150,16 +163,16 @@
                     "pane": {
                       "background": "background",
                       "border": {
-                        "width": 1,
+                        "width": 0,
                         "color": "border"
                       },
                       "focus": {
-                        "width": 1,
+                        "width": 0,
                         "color": "accent"
                       },
                       "radius": 10,
                       "gap": 8,
-                      "lone": true
+                      "lone": false
                     }
                   }
                 },
@@ -216,18 +229,12 @@
                   "max": 900,
                   "hidden": false
                 }
-              ],
-              "padding": 8,
-              "gap": 8
+              ]
             }
           ],
           "resizable": false
         }
-      ],
-      "divider": {
-        "width": 1,
-        "color": "border"
-      }
+      ]
     },
     {
       "id": "b5a2555d665994827df99a6eda27d695e",
@@ -257,8 +264,8 @@
   ],
   "titlebar": "none",
   "traffic_lights": [
-    12,
-    16
+    -100,
+    -100
   ],
   "terminal_menu": "my-menu"
 }
