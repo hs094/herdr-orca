@@ -49,7 +49,7 @@ const rowHeight = ({ tree }) => (tree ? 28 : 30);
 // occasionally to catch edits and commits made outside Herdr.
 const GIT_FALLBACK_MS = 15000;
 // Preferences a person may change in the installed mod.json under `settings`.
-const DEFAULT_SETTINGS = { git: { retry_after: "15s" }, pull_request_status: true };
+const DEFAULT_SETTINGS = { git: { retry_after: "15s" }, pull_request_status: true, pull_request_refresh_after: "5m" };
 
 // What a stored color name looks like on an avatar (the same in every mod
 // that draws space avatars): one strong color per hue, light and dark alike.
@@ -180,7 +180,8 @@ export class Spaces {
           this.git[prPlaceKey(s.machine, folder)]?.branch,
       };
     });
-    if (this.settings.pull_request_status) this.prObserver.refresh(places, cx);
+    if (this.settings.pull_request_status)
+      this.prObserver.refresh(places, cx, duration(this.settings.pull_request_refresh_after, 5 * 60_000));
     const due = this.due(now, sp, ps);
     if (due.size) this.refreshGit(due, cx);
     this.askIcons(now, cx);
