@@ -998,7 +998,7 @@ export class Spaces {
       .items_center()
       .cursor_pointer()
       .text_color(color)
-      .tooltip(`${ref} · ${label}\n${title}\nClick to view · ${shortcut}-click to open`)
+      .when(!pr, (el) => el.tooltip(`${ref} · ${label}\n${title}\nClick to view · ${shortcut}-click to open`))
       .on_mouse_down("left", (_e, cx) => {
         cx.stop_propagation();
         this.pressed = null;
@@ -1389,7 +1389,7 @@ export class Spaces {
       .when(Boolean(tree), (el) => el.pl(22).child(Icon("branch", 13).text_color(t.dim)))
       .when(!tree, (el) => el.child(this.avatar(w, t, g)))
       .child(
-        div().flex_1().min_w(0).truncate().tooltip(w.name).text_color(t.foreground).child(shownName(w, g)),
+        div().flex_1().min_w(0).truncate().text_color(t.foreground).child(shownName(w, g)),
       )
       .when(!tree && Boolean(g) && !g.linked, (el) => el.child(this.repoButtons(w, g, t)))
       .when((Boolean(tree) || !this.isMain(g)) && this.hasAgents(w, g) && (this.hovering === w.id || this.agentsHidden(w, g)), (el) =>
